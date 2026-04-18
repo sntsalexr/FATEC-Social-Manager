@@ -1,0 +1,5 @@
+{
+  "name": "Fatec Social",
+  "description": "Gerenciador de tarefas para o Fatec Social com autenticação de usuários e painel de Administrador.",
+  "requestFramePermissions": []
+}

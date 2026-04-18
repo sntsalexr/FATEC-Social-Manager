@@ -1,0 +1,163 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definitions
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { 
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        request.auth.token.email == 'santosalexander97528@gmail.com'
+      ); 
+    }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'santosalexander97528@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      ); 
+    }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Phase 4: Entity Validators
+    
+    function isValidInstagramMetrics(data) {
+      return data.keys().hasAll(['followers', 'views', 'followersGoal']) &&
+             data.followers is number &&
+             data.views is number &&
+             data.followersGoal is number;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['firstname', 'lastname', 'email', 'photo']) &&
+             data.firstname is string && data.firstname.size() <= 100 &&
+             data.lastname is string && data.lastname.size() <= 100 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.photo is string && data.photo.size() <= 1048576 &&
+             (!data.keys().hasAll(['roles']) || data.roles is list);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'message', 'timestamp', 'read', 'type']) &&
+             isValidId(data.userId) &&
+             data.message is string && data.message.size() <= 1000 &&
+             data.timestamp is string &&
+             data.read is bool &&
+             data.type in ['info', 'success', 'warning', 'error'];
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['userId', 'user', 'photo', 'text', 'timestamp']) &&
+             isValidId(data.userId) &&
+             data.user is string && data.user.size() <= 100 &&
+             data.photo is string && data.photo.size() <= 2000 &&
+             data.text is string && data.text.size() <= 5000 &&
+             data.timestamp is string;
+    }
+
+    function isValidContent(data) {
+      return data.keys().hasAll(['title', 'description', 'timestamp', 'status']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.timestamp is string &&
+             data.status in ['todo', 'doing', 'done', 'gravando', 'editando', 'finalizado'];
+    }
+
+    function isValidProductionStep(data) {
+      return data.keys().hasAll(['id', 'title', 'description', 'status']) &&
+             data.id is int &&
+             data.title is string && data.title.size() <= 100 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.status in ['todo', 'doing', 'done'];
+    }
+
+    function isValidScheduledTask(data) {
+      return data.keys().hasAll(['stepId', 'date', 'time', 'description']) &&
+             data.stepId is int &&
+             data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+             data.time is string && data.time.matches('^\\d{2}:\\d{2}$') &&
+             data.description is string && data.description.size() <= 2000;
+    }
+
+    // Phase 5: Collection Matches
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if (isOwner(userId) || isAdmin()) && 
+                    isValidUser(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.userId == "" || 
+        !resource.data.keys().hasAll(['userId'])
+      );
+      allow get: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.userId == "" || 
+        !resource.data.keys().hasAll(['userId'])
+      );
+      allow create: if isEmailVerified() && isValidNotification(incoming());
+      allow update: if isOwner(existing().userId) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isOwner(existing().userId) || isAdmin();
+    }
+
+    match /productionSteps/{stepId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /productionSteps/{stepId}/messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && 
+                    isValidId(stepId) &&
+                    isValidMessage(incoming()) && 
+                    incoming().userId == request.auth.uid;
+      allow delete: if isOwner(existing().userId) || isAdmin();
+    }
+
+    match /productionSteps/{stepId}/contents/{contentId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && 
+                    isValidId(stepId) &&
+                    isValidContent(incoming());
+      allow update: if isEmailVerified() && 
+                    isValidId(stepId) &&
+                    isValidContent(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /scheduledTasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && isValidScheduledTask(incoming());
+      allow update: if isEmailVerified() && isValidScheduledTask(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /settings/instagramMetrics {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidInstagramMetrics(incoming());
+    }
+
+    // Role-based helper for specific tasks if needed
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

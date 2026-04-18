@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile and permissions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "firstname": { "type": "string" },
+        "lastname": { "type": "string" },
+        "email": { "type": "string" },
+        "photo": { "type": "string" },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "sectors": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["firstname", "lastname", "email", "photo"]
+    },
+    "notification": {
+      "title": "Notification",
+      "description": "System notification for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "targetRole": { "type": "string" }
+      },
+      "required": ["userId", "message", "timestamp", "read", "type"]
+    },
+    "message": {
+      "title": "Chat Message",
+      "description": "Message in a production step chat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "user": { "type": "string" },
+        "photo": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "user", "photo", "text", "timestamp"]
+    },
+    "content": {
+      "title": "Production Content",
+      "description": "Content piece within a production step",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["image", "video"] },
+        "fileLink": { "type": "string" },
+        "finalFileLink": { "type": "string" },
+        "rawFiles": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "completionDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "doing", "done", "gravando", "editando", "finalizado"] },
+        "sentToNext": { "type": "boolean" },
+        "sourceStepId": { "type": "number" },
+        "sourceContentId": { "type": "string" },
+        "displayLog": { "type": "number" },
+        "readyForCalendar": { "type": "boolean" },
+        "assignedUserIds": { "type": "array", "items": { "type": "string" } },
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "action": { "type": "string" },
+              "user": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "required": ["title", "description", "timestamp", "status"]
+    },
+    "productionStep": {
+      "title": "Production Step",
+      "description": "Major stage in the production workflow",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "doing", "done"] }
+      },
+      "required": ["id", "title", "description", "status"]
+    },
+    "scheduledTask": {
+      "title": "Scheduled Task",
+      "description": "Task scheduled in the calendar",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "stepId": { "type": "number" },
+        "contentId": { "type": "string" },
+        "contentTitle": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Agendado", "Publicado"] },
+        "type": { "type": "string", "enum": ["arte", "vídeo", "outro"] },
+        "finalFileLink": { "type": "string" },
+        "originStepId": { "type": "number" },
+        "taskReferenceId": { "type": "string" },
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "action": { "type": "string" },
+              "user": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "required": ["stepId", "date", "time", "description"]
+    },
+    "instagramMetrics": {
+      "title": "Instagram Metrics",
+      "description": "Social media performance metrics",
+      "type": "object",
+      "properties": {
+        "followers": { "type": "number" },
+        "views": { "type": "number" },
+        "followersGoal": { "type": "number" }
+      },
+      "required": ["followers", "views", "followersGoal"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profiles"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "notification",
+      "description": "System notifications"
+    },
+    "/productionSteps/{stepId}": {
+      "schema": "productionStep",
+      "description": "Workflow steps"
+    },
+    "/productionSteps/{stepId}/messages/{messageId}": {
+      "schema": "message",
+      "description": "Chat messages for a step"
+    },
+    "/productionSteps/{stepId}/contents/{contentId}": {
+      "schema": "content",
+      "description": "Content pieces for a step"
+    },
+    "/scheduledTasks/{taskId}": {
+      "schema": "scheduledTask",
+      "description": "Calendar tasks"
+    },
+    "/settings/instagramMetrics": {
+      "schema": "instagramMetrics",
+      "description": "Instagram performance data"
+    }
+  }
+}
